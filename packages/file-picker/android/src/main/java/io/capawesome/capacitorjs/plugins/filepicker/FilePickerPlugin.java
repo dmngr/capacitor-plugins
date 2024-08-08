@@ -1,8 +1,11 @@
 package io.capawesome.capacitorjs.plugins.filepicker;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.util.Log;
 import androidx.activity.result.ActivityResult;
 import androidx.annotation.Nullable;
@@ -200,11 +203,35 @@ public class FilePickerPlugin extends Plugin {
                 fileResult.put("modifiedAt", modifiedAt);
             }
             fileResult.put("name", implementation.getNameFromUri(uri));
-            fileResult.put("path", implementation.getPathFromUri(uri));
+            String path = getRealPathFromURI(getContext(), uri);
+            if (path != null && !path.isEmpty()) {
+                fileResult.put("path", "file://" + path);
+            }
             fileResult.put("size", implementation.getSizeFromUri(uri));
             filesResultList.add(fileResult);
         }
         callResult.put("files", JSArray.from(filesResultList.toArray()));
         return callResult;
+    }
+
+    private String getRealPathFromURI(Context context, Uri contentUri) {
+        Cursor cursor = null;
+        try {
+            String[] proj = { MediaStore.Images.Media.DATA };
+            cursor = context.getContentResolver().query(contentUri, proj, null, null, null);
+            if (cursor == null) {
+                return "";
+            }
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            cursor.moveToFirst();
+            return cursor.getString(column_index);
+        } catch (Exception e) {
+            Log.e("problem", "getRealPathFromURI Exception : " + e.toString());
+            return "";
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
     }
 }
